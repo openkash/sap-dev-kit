@@ -1,12 +1,10 @@
 # SAP Dev Kit
 
-Command-line toolkit for ABAP development on SAP systems.
+Scriptable access to SAP systems from the terminal.
 
-Sync code from SAP to local files, edit in any editor, branch and review with git, run quality checks in your pipeline, and push changes back - all from the terminal.
+Sync code, run quality checks, manage transports, assess S/4HANA readiness, and query data. `--json` output on every command, composable with standard Unix tools. No SAP-side installation required.
 
-102 commands. Single binary. No runtime dependencies. No SAP-side installation.
-
-Works with S/4HANA, ECC, and NetWeaver AS ABAP 7.50+ - any system with ADT endpoints enabled.
+102 commands. Single binary. No runtime dependencies. Works with S/4HANA, ECC, and NetWeaver AS ABAP 7.50+. Requires ADT endpoints enabled.
 
 ## What You Can Do
 
@@ -194,6 +192,57 @@ Works with any agent that has shell access. No MCP server required.
 
 ---
 
+### 6. Automate at Scale - governance, migration, and system intelligence
+
+Every command outputs JSON and returns exit codes. Pipe, filter, loop, schedule.
+
+**Technical debt dashboard** - track compliance scores over time:
+
+```bash
+# Weekly: assess all custom packages, feed into Grafana
+for pkg in $(sapdev package list --json | jq -r '.[].name'); do
+  sapdev clean-core assess $pkg --json >> "scores/$(date +%Y-%m-%d).json"
+done
+sapdev clean-core executive    # aggregate cross-package report
+```
+
+**Multi-system divergence detection** - catch drift between DEV, QAS, PRD:
+
+```bash
+for obj in ZCL_JOURNAL ZCL_POSTING ZCL_APPROVAL; do
+  sapdev source get $obj -c dev > "dev/${obj}.abap"
+  sapdev source get $obj -c prd > "prd/${obj}.abap"
+  diff "dev/${obj}.abap" "prd/${obj}.abap" || echo "DIVERGED: $obj"
+done
+```
+
+**Assembly-line refactoring** - one PR per object:
+
+```bash
+sapdev clean-core prep S4H/ZLEGACY
+cd sapdev/clean-core/S4H/ZLEGACY/fix-context
+for file in *.clas.abap; do
+  obj=$(basename $file .clas.abap | tr 'a-z' 'A-Z')
+  git checkout -b "fix/${obj}"
+  # fix findings using .context/ metadata
+  sapdev check syntax $obj --source $file --json    # validate
+  git add -A && git commit -m "Fix: $obj"
+  gh pr create --title "Clean core: $obj"
+  git checkout main
+done
+```
+
+**Dependency mapping** - build a graph of custom code:
+
+```bash
+for obj in $(sapdev object search "ZCL_*" --type CLAS --json | jq -r '.[].name'); do
+  sapdev code references $obj --json >> dependency-graph.json
+done
+# Feed into Neo4j, answer: "what breaks if we delete ZCL_LEGACY_HELPER?"
+```
+
+---
+
 ## Download
 
 | Platform | Binary |
@@ -270,7 +319,7 @@ They're complementary. Use abapGit when you need branch/merge operations managed
 ```bash
 sapdev clean-core assess ZPACKAGE           # discover + classify (A/B/C/D)
 sapdev clean-core prep S4H/ZPACKAGE         # download source + fix context for D/C objects
-# ... AI agent or human edits .clas.abap / .prog.abap files ...
+# ... edit .clas.abap / .prog.abap files ...
 sapdev clean-core apply S4H/ZPACKAGE        # push fixes back to SAP (lock → write → activate)
 ```
 
