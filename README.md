@@ -316,6 +316,8 @@ They're complementary. Use abapGit when you need branch/merge operations managed
 | `workspace pull` | `git pull` | Refresh from SAP (with conflict detection) |
 | `workspace push` | `git push` | Upload local changes to SAP |
 | `workspace reset` | `git checkout .` | Discard local changes, restore SAP baseline |
+
+All workspace write commands (init, pull, push) save progress after each object — Ctrl+C stops gracefully without losing completed work. Re-run the same command to continue.
 | `workspace add` | - | Add new objects to the workspace |
 | `workspace remove` | - | Stop tracking objects |
 
